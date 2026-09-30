@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -46,6 +47,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidScheduleException.class)
     public ResponseEntity<ApiError> handleInvalidSchedule(InvalidScheduleException ex) {
         ApiError body = new ApiError(HttpStatus.BAD_REQUEST.value(), "Bad Request", ex.getMessage());
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        ApiError body = new ApiError(
+            HttpStatus.BAD_REQUEST.value(), "Bad Request",
+            "Datos inválidos: revisa el formato de los campos (ej. las horas deben ir de 00:00 a 23:59, sin usar 24:00)."
+        );
         return ResponseEntity.badRequest().body(body);
     }
 
