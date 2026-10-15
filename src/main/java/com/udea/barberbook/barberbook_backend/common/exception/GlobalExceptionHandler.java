@@ -10,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -54,9 +55,24 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleUnreadableBody(HttpMessageNotReadableException ex) {
         ApiError body = new ApiError(
             HttpStatus.BAD_REQUEST.value(), "Bad Request",
-            "Datos inválidos: revisa el formato de los campos (ej. las horas deben ir de 00:00 a 23:59, sin usar 24:00)."
+            "Datos inválidos: revisa el formato de los campos (ej. las horas van de 00:00 a 23:59, sin usar 24:00; "
+                + "precios y duraciones son números)."
         );
         return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        ApiError body = new ApiError(
+            HttpStatus.BAD_REQUEST.value(), "Bad Request", "Valor inválido para el parámetro '" + ex.getName() + "'."
+        );
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(ServiceNotFoundException.class)
+    public ResponseEntity<ApiError> handleServiceNotFound(ServiceNotFoundException ex) {
+        ApiError body = new ApiError(HttpStatus.NOT_FOUND.value(), "Not Found", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
