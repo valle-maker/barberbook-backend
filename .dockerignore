@@ -1,0 +1,7 @@
+target/
+.git/
+.vscode/
+.idea/
+*.log
+HELP.md
+src/main/resources/keys/
