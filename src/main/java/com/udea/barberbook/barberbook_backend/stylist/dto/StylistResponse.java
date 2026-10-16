@@ -11,5 +11,6 @@ public record StylistResponse(
     String specialty,
     String role,
     List<ScheduleEntryResponse> schedule,
+    List<UUID> serviceIds,
     String message
 ) {}

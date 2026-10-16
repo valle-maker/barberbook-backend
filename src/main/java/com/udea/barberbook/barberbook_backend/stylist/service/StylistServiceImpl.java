@@ -1,15 +1,21 @@
 package com.udea.barberbook.barberbook_backend.stylist.service;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.udea.barberbook.barberbook_backend.catalog.domain.BarberService;
+import com.udea.barberbook.barberbook_backend.catalog.repository.BarberServiceRepository;
 import com.udea.barberbook.barberbook_backend.common.email.EmailService;
 import com.udea.barberbook.barberbook_backend.common.exception.EmailAlreadyExistsException;
 import com.udea.barberbook.barberbook_backend.common.exception.InvalidScheduleException;
+import com.udea.barberbook.barberbook_backend.common.exception.ServiceNotFoundException;
+import com.udea.barberbook.barberbook_backend.common.exception.StylistNotFoundException;
 import com.udea.barberbook.barberbook_backend.stylist.domain.Stylist;
 import com.udea.barberbook.barberbook_backend.stylist.domain.WeeklySchedule;
 import com.udea.barberbook.barberbook_backend.stylist.dto.CreateStylistRequest;
@@ -29,6 +35,7 @@ public class StylistServiceImpl implements StylistService {
 
     private final UserRepository userRepository;
     private final StylistRepository stylistRepository;
+    private final BarberServiceRepository barberServiceRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
@@ -73,12 +80,34 @@ public class StylistServiceImpl implements StylistService {
                 .build())
             .toList();
         stylist.setSchedule(scheduleEntities);
+        stylist.setServices(resolveServices(request.serviceIds()));
 
         Stylist saved = stylistRepository.save(stylist);
 
         emailService.sendTemporaryCredentials(user.getEmail(), user.getFullName(), temporaryPassword);
 
-        return toResponse(saved);
+        return toResponse(saved, "Estilista registrado. Se enviaron las credenciales temporales por correo.");
+    }
+
+    @Override
+    @Transactional
+    public StylistResponse assignServices(UUID stylistId, List<UUID> serviceIds) {
+        Stylist stylist = stylistRepository.findById(stylistId)
+            .orElseThrow(() -> new StylistNotFoundException("No se encontró el estilista solicitado."));
+        stylist.setServices(resolveServices(serviceIds));
+        return toResponse(stylistRepository.save(stylist), "Servicios del estilista actualizados.");
+    }
+
+    private Set<BarberService> resolveServices(List<UUID> serviceIds) {
+        if (serviceIds == null || serviceIds.isEmpty()) {
+            return new HashSet<>();
+        }
+        Set<UUID> distinctIds = new HashSet<>(serviceIds);
+        List<BarberService> found = barberServiceRepository.findAllById(distinctIds);
+        if (found.size() != distinctIds.size()) {
+            throw new ServiceNotFoundException("Alguno de los servicios indicados no existe.");
+        }
+        return new HashSet<>(found);
     }
 
     private void validateSchedule(List<ScheduleEntryRequest> schedule) {
@@ -113,7 +142,7 @@ public class StylistServiceImpl implements StylistService {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 12) + "!A1";
     }
 
-    private StylistResponse toResponse(Stylist stylist) {
+    private StylistResponse toResponse(Stylist stylist, String message) {
         List<ScheduleEntryResponse> scheduleResponse = stylist.getSchedule().stream()
             .map(entry -> new ScheduleEntryResponse(
                 entry.getDayOfWeek(), entry.getStartTime(), entry.getEndTime(),
@@ -129,7 +158,8 @@ public class StylistServiceImpl implements StylistService {
             stylist.getSpecialty(),
             user.getRole().name(),
             scheduleResponse,
-            "Estilista registrado. Se enviaron las credenciales temporales por correo."
+            stylist.getServices().stream().map(BarberService::getId).sorted().toList(),
+            message
         );
     }
 }

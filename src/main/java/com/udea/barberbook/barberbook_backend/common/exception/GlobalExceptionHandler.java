@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -69,8 +70,28 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiError> handleMissingParameter(MissingServletRequestParameterException ex) {
+        ApiError body = new ApiError(
+            HttpStatus.BAD_REQUEST.value(), "Bad Request", "Falta el parámetro '" + ex.getParameterName() + "'."
+        );
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(InvalidAvailabilityQueryException.class)
+    public ResponseEntity<ApiError> handleInvalidAvailabilityQuery(InvalidAvailabilityQueryException ex) {
+        ApiError body = new ApiError(HttpStatus.BAD_REQUEST.value(), "Bad Request", ex.getMessage());
+        return ResponseEntity.badRequest().body(body);
+    }
+
     @ExceptionHandler(ServiceNotFoundException.class)
     public ResponseEntity<ApiError> handleServiceNotFound(ServiceNotFoundException ex) {
+        ApiError body = new ApiError(HttpStatus.NOT_FOUND.value(), "Not Found", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    @ExceptionHandler(StylistNotFoundException.class)
+    public ResponseEntity<ApiError> handleStylistNotFound(StylistNotFoundException ex) {
         ApiError body = new ApiError(HttpStatus.NOT_FOUND.value(), "Not Found", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }

@@ -1,6 +1,7 @@
 package com.udea.barberbook.barberbook_backend.stylist.dto;
 
 import java.util.List;
+import java.util.UUID;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -26,5 +27,9 @@ public record CreateStylistRequest(
 
     @NotEmpty(message = "Debes configurar al menos un día de horario")
     @Valid
-    List<ScheduleEntryRequest> schedule
+    List<ScheduleEntryRequest> schedule,
+
+    // Optional: services the stylist can perform. Can also be set later
+    // through PUT /api/v1/admin/stylists/{id}/services.
+    List<UUID> serviceIds
 ) {}
