@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.udea.barberbook.barberbook_backend.availability.dto.AvailabilityResponse;
+import com.udea.barberbook.barberbook_backend.availability.dto.DayAvailabilityResponse;
+import com.udea.barberbook.barberbook_backend.availability.dto.ServerTimeResponse;
 import com.udea.barberbook.barberbook_backend.availability.dto.TimeSlotResponse;
 import com.udea.barberbook.barberbook_backend.booking.domain.Appointment;
 import com.udea.barberbook.barberbook_backend.booking.domain.AppointmentStatus;
@@ -46,6 +49,9 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     private final AppointmentRepository appointmentRepository;
     private final Clock clock;
 
+    @Value("${app.business.zone}")
+    private String zone;
+
     @Value("${app.business.close-time}")
     private String closeTime;
 
@@ -58,22 +64,21 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     @Override
     @Transactional(readOnly = true)
     public AvailabilityResponse getAvailability(String stylistParam, UUID serviceId, LocalDate date) {
-        BarberService service = serviceRepository.findById(serviceId)
-            .filter(s -> s.getStatus() == ServiceStatus.ACTIVO)
-            .orElseThrow(() -> new ServiceNotFoundException("No se encontró el servicio solicitado."));
-
+        BarberService service = findActiveService(serviceId);
         List<Stylist> candidates = resolveCandidates(stylistParam, service);
+        LocalDateTime now = LocalDateTime.now(clock);
 
         TreeMap<LocalTime, List<UUID>> freeSlots = new TreeMap<>();
-        LocalDateTime now = LocalDateTime.now(clock);
         if (!date.isBefore(now.toLocalDate()) && !candidates.isEmpty()) {
-            computeSlots(candidates, service, date, now, freeSlots);
+            Map<UUID, List<Appointment>> busy = loadBusy(candidates, date, date);
+            freeSlots = freeSlotsForDay(candidates, service, date, now, busy);
         }
 
         List<TimeSlotResponse> slots = freeSlots.entrySet().stream()
-            .map(e -> new TimeSlotResponse(
-                e.getKey().toString(),
-                e.getValue().stream().sorted().toList()))
+            .map(e -> {
+                List<UUID> ids = e.getValue().stream().sorted().toList();
+                return new TimeSlotResponse(e.getKey().toString(), ids.get(0), ids);
+            })
             .toList();
 
         return new AvailabilityResponse(
@@ -82,8 +87,42 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             serviceId,
             service.getDurationMinutes(),
             slots,
-            slots.isEmpty() ? NO_SLOTS_MESSAGE : null
+            slots.isEmpty() ? NO_SLOTS_MESSAGE : null,
+            new ServerTimeResponse(clock.millis(), zone)
         );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DayAvailabilityResponse> getMonthAvailability(String stylistParam, UUID serviceId, int year, int month) {
+        if (month < 1 || month > 12 || year < 2020 || year > 2100) {
+            throw new InvalidAvailabilityQueryException("El mes solicitado no es válido.");
+        }
+
+        BarberService service = findActiveService(serviceId);
+        List<Stylist> candidates = resolveCandidates(stylistParam, service);
+        LocalDateTime now = LocalDateTime.now(clock);
+        YearMonth yearMonth = YearMonth.of(year, month);
+
+        Map<UUID, List<Appointment>> busy = candidates.isEmpty()
+            ? new HashMap<>()
+            : loadBusy(candidates, yearMonth.atDay(1), yearMonth.atEndOfMonth());
+
+        List<DayAvailabilityResponse> days = new ArrayList<>();
+        for (int day = 1; day <= yearMonth.lengthOfMonth(); day++) {
+            LocalDate date = yearMonth.atDay(day);
+            boolean has = !date.isBefore(now.toLocalDate())
+                && !candidates.isEmpty()
+                && !freeSlotsForDay(candidates, service, date, now, busy).isEmpty();
+            days.add(new DayAvailabilityResponse(date, has));
+        }
+        return days;
+    }
+
+    private BarberService findActiveService(UUID serviceId) {
+        return serviceRepository.findById(serviceId)
+            .filter(s -> s.getStatus() == ServiceStatus.ACTIVO)
+            .orElseThrow(() -> new ServiceNotFoundException("No se encontró el servicio solicitado."));
     }
 
     private List<Stylist> resolveCandidates(String stylistParam, BarberService service) {
@@ -108,22 +147,27 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         return List.of(stylist);
     }
 
-    private void computeSlots(
+    // Confirmed appointments of the candidates between firstDay and lastDay (inclusive), by stylist.
+    private Map<UUID, List<Appointment>> loadBusy(List<Stylist> stylists, LocalDate firstDay, LocalDate lastDay) {
+        List<UUID> ids = stylists.stream().map(Stylist::getId).toList();
+        return appointmentRepository
+            .findOverlapping(ids, AppointmentStatus.CONFIRMADA, firstDay.atStartOfDay(), lastDay.plusDays(1).atStartOfDay())
+            .stream()
+            .collect(Collectors.groupingBy(a -> a.getStylist().getId(), HashMap::new, Collectors.toList()));
+    }
+
+    // Start times (and who can take each) where the service fits entirely free for the date.
+    private TreeMap<LocalTime, List<UUID>> freeSlotsForDay(
         List<Stylist> stylists, BarberService service, LocalDate date, LocalDateTime now,
-        TreeMap<LocalTime, List<UUID>> freeSlots
+        Map<UUID, List<Appointment>> busyByStylist
     ) {
+        TreeMap<LocalTime, List<UUID>> freeSlots = new TreeMap<>();
         int duration = service.getDurationMinutes();
         int closeMinute = LocalTime.parse(closeTime).toSecondOfDay() / 60;
         LocalDateTime earliestStart = now.plusMinutes(minAdvanceMinutes);
 
-        List<UUID> stylistIds = stylists.stream().map(Stylist::getId).toList();
-        Map<UUID, List<Appointment>> busyByStylist = appointmentRepository
-            .findOverlapping(stylistIds, AppointmentStatus.CONFIRMADA, date.atStartOfDay(), date.plusDays(1).atStartOfDay())
-            .stream()
-            .collect(Collectors.groupingBy(a -> a.getStylist().getId(), HashMap::new, Collectors.toList()));
-
         for (Stylist stylist : stylists) {
-            List<Appointment> busy = busyByStylist.getOrDefault(stylist.getId(), new ArrayList<>());
+            List<Appointment> busy = busyByStylist.getOrDefault(stylist.getId(), List.of());
 
             for (WeeklySchedule shift : stylist.getSchedule()) {
                 if (shift.getDayOfWeek() != date.getDayOfWeek()) {
@@ -152,6 +196,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
                 }
             }
         }
+        return freeSlots;
     }
 
     private boolean overlapsBreak(WeeklySchedule shift, int startMinute, int endMinute) {

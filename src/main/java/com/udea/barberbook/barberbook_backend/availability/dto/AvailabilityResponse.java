@@ -11,5 +11,6 @@ public record AvailabilityResponse(
     UUID serviceId,
     int durationMinutes,
     List<TimeSlotResponse> slots,
-    String message
+    String message,
+    ServerTimeResponse serverTime
 ) {}
