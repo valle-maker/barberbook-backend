@@ -25,6 +25,8 @@ import com.udea.barberbook.barberbook_backend.booking.repository.AppointmentRepo
 import com.udea.barberbook.barberbook_backend.catalog.domain.BarberService;
 import com.udea.barberbook.barberbook_backend.common.email.EmailService;
 import com.udea.barberbook.barberbook_backend.common.exception.SlotUnavailableException;
+import com.udea.barberbook.barberbook_backend.notification.domain.NotificationType;
+import com.udea.barberbook.barberbook_backend.notification.service.NotificationService;
 import com.udea.barberbook.barberbook_backend.stylist.domain.Stylist;
 import com.udea.barberbook.barberbook_backend.stylist.repository.StylistRepository;
 import com.udea.barberbook.barberbook_backend.user.domain.User;
@@ -52,6 +54,7 @@ public class BookingServiceImpl implements BookingService {
     private final StylistRepository stylistRepository;
     private final UserRepository userRepository;
     private final EmailService emailService;
+    private final NotificationService notificationService;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
@@ -94,6 +97,10 @@ public class BookingServiceImpl implements BookingService {
             .build());
 
         String when = start.format(DAY_FORMAT) + " a las " + start.format(HOUR_FORMAT);
+        notificationService.create(
+            client, NotificationType.CITA_CONFIRMADA, "Cita confirmada",
+            "Tu cita de " + service.getName() + " con " + chosen.getUser().getFullName()
+                + " es el " + when + " (" + appointment.getCode() + ").");
         sendConfirmationAfterCommit(client, appointment, chosen, service, when);
 
         return new AppointmentResponse(

@@ -1,5 +1,6 @@
 package com.udea.barberbook.barberbook_backend.stylist.domain;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -50,6 +51,11 @@ public class Stylist {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    // Average rating 0.0-5.0 shown on the home screen (HU-06). There is no reviews feature
+    // yet, so for now the admin sets it by hand; null = not rated, the front hides the stars.
+    @Column(precision = 2, scale = 1)
+    private BigDecimal rating;
 
     @OneToMany(mappedBy = "stylist", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

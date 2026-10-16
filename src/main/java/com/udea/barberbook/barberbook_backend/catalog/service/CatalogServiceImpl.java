@@ -1,6 +1,9 @@
 package com.udea.barberbook.barberbook_backend.catalog.service;
 
+import java.text.Normalizer;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -28,6 +31,29 @@ public class CatalogServiceImpl implements CatalogService {
         return repository.findByStatusOrderByNameAsc(ServiceStatus.ACTIVO).stream()
             .map(this::toResponse)
             .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ServiceResponse> searchActive(String query) {
+        if (query == null || query.isBlank()) {
+            return listActive();
+        }
+        String[] words = normalize(query).split("\\s+");
+        return repository.findByStatusOrderByNameAsc(ServiceStatus.ACTIVO).stream()
+            .filter(s -> {
+                String haystack = normalize(s.getName() + " " + s.getCategory().getLabel());
+                return Arrays.stream(words).allMatch(haystack::contains);
+            })
+            .map(this::toResponse)
+            .toList();
+    }
+
+    private static String normalize(String text) {
+        return Normalizer.normalize(text, Normalizer.Form.NFD)
+            .replaceAll("\\p{M}", "")
+            .toLowerCase(Locale.ROOT)
+            .trim();
     }
 
     @Override

@@ -15,6 +15,8 @@ import jakarta.persistence.LockModeType;
 
 public interface StylistRepository extends JpaRepository<Stylist, UUID> {
 
+    List<Stylist> findByActiveTrue();
+
     List<Stylist> findByActiveTrueAndServices_Id(UUID serviceId);
 
     // SELECT ... FOR UPDATE on the stylist rows, always in id order so concurrent

@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.udea.barberbook.barberbook_backend.stylist.dto.AssignServicesRequest;
 import com.udea.barberbook.barberbook_backend.stylist.dto.CreateStylistRequest;
 import com.udea.barberbook.barberbook_backend.stylist.dto.StylistResponse;
+import com.udea.barberbook.barberbook_backend.stylist.dto.UpdateStylistProfileRequest;
 import com.udea.barberbook.barberbook_backend.stylist.service.StylistService;
 
 import jakarta.validation.Valid;
@@ -30,6 +32,13 @@ public class StylistController {
     public ResponseEntity<StylistResponse> create(@Valid @RequestBody CreateStylistRequest request) {
         StylistResponse response = stylistService.createStylist(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PatchMapping("/{id}/profile")
+    public ResponseEntity<StylistResponse> updateProfile(
+        @PathVariable UUID id, @Valid @RequestBody UpdateStylistProfileRequest request
+    ) {
+        return ResponseEntity.ok(stylistService.updateProfile(id, request));
     }
 
     @PutMapping("/{id}/services")

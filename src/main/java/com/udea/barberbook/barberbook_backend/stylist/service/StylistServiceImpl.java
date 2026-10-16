@@ -1,5 +1,6 @@
 package com.udea.barberbook.barberbook_backend.stylist.service;
 
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -20,8 +21,10 @@ import com.udea.barberbook.barberbook_backend.stylist.domain.Stylist;
 import com.udea.barberbook.barberbook_backend.stylist.domain.WeeklySchedule;
 import com.udea.barberbook.barberbook_backend.stylist.dto.CreateStylistRequest;
 import com.udea.barberbook.barberbook_backend.stylist.dto.ScheduleEntryRequest;
+import com.udea.barberbook.barberbook_backend.stylist.dto.PublicStylistResponse;
 import com.udea.barberbook.barberbook_backend.stylist.dto.ScheduleEntryResponse;
 import com.udea.barberbook.barberbook_backend.stylist.dto.StylistResponse;
+import com.udea.barberbook.barberbook_backend.stylist.dto.UpdateStylistProfileRequest;
 import com.udea.barberbook.barberbook_backend.stylist.repository.StylistRepository;
 import com.udea.barberbook.barberbook_backend.user.domain.Role;
 import com.udea.barberbook.barberbook_backend.user.domain.User;
@@ -58,6 +61,7 @@ public class StylistServiceImpl implements StylistService {
             .email(email)
             .passwordHash(passwordEncoder.encode(temporaryPassword))
             .role(Role.ESTILISTA)
+            .photoUrl(blankToNull(request.photoUrl()))
             .enabled(true)
             .failedLoginAttempts(0)
             .build();
@@ -67,6 +71,7 @@ public class StylistServiceImpl implements StylistService {
             .user(user)
             .specialty(request.specialty().trim())
             .active(true)
+            .rating(request.rating())
             .build();
 
         List<WeeklySchedule> scheduleEntities = request.schedule().stream()
@@ -96,6 +101,42 @@ public class StylistServiceImpl implements StylistService {
             .orElseThrow(() -> new StylistNotFoundException("No se encontró el estilista solicitado."));
         stylist.setServices(resolveServices(serviceIds));
         return toResponse(stylistRepository.save(stylist), "Servicios del estilista actualizados.");
+    }
+
+    @Override
+    @Transactional
+    public StylistResponse updateProfile(UUID stylistId, UpdateStylistProfileRequest request) {
+        Stylist stylist = stylistRepository.findById(stylistId)
+            .orElseThrow(() -> new StylistNotFoundException("No se encontró el estilista solicitado."));
+        if (request.photoUrl() != null) {
+            stylist.getUser().setPhotoUrl(blankToNull(request.photoUrl()));
+        }
+        if (request.rating() != null) {
+            stylist.setRating(request.rating());
+        }
+        return toResponse(stylistRepository.save(stylist), "Perfil del estilista actualizado.");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicStylistResponse> listActive(UUID serviceId) {
+        List<Stylist> stylists = serviceId == null
+            ? stylistRepository.findByActiveTrue()
+            : stylistRepository.findByActiveTrueAndServices_Id(serviceId);
+        return stylists.stream()
+            .sorted(Comparator.comparing(s -> s.getUser().getFullName(), String.CASE_INSENSITIVE_ORDER))
+            .map(s -> new PublicStylistResponse(
+                s.getId(),
+                s.getUser().getFullName(),
+                s.getSpecialty(),
+                s.getUser().getPhotoUrl(),
+                s.getRating(),
+                s.getServices().stream().map(BarberService::getId).sorted().toList()))
+            .toList();
+    }
+
+    private static String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private Set<BarberService> resolveServices(List<UUID> serviceIds) {
@@ -159,6 +200,8 @@ public class StylistServiceImpl implements StylistService {
             user.getRole().name(),
             scheduleResponse,
             stylist.getServices().stream().map(BarberService::getId).sorted().toList(),
+            user.getPhotoUrl(),
+            stylist.getRating(),
             message
         );
     }

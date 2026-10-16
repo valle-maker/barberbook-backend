@@ -50,6 +50,10 @@ public class User {
     // Present only for users created via Google OAuth2 (HU-02)
     private String googleId;
 
+    // Profile picture URL (home screen header, stylist cards); null = no photo
+    @Column(length = 500)
+    private String photoUrl;
+
     @Column(nullable = false)
     @Builder.Default
     private int failedLoginAttempts = 0;

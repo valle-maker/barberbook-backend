@@ -1,5 +1,6 @@
 package com.udea.barberbook.barberbook_backend.stylist.dto;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,5 +13,7 @@ public record StylistResponse(
     String role,
     List<ScheduleEntryResponse> schedule,
     List<UUID> serviceIds,
+    String photoUrl,
+    BigDecimal rating,
     String message
 ) {}

@@ -54,7 +54,12 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/google")
                 .permitAll()
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/services").permitAll()
+                .requestMatchers(
+                    org.springframework.http.HttpMethod.GET,
+                    "/api/v1/services", "/api/v1/stylists", "/api/v1/home/popular-services"
+                ).permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/home/recommendations")
+                .hasRole("CLIENTE")
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/appointments").hasRole("CLIENTE")
                 .anyRequest().authenticated()

@@ -11,6 +11,10 @@ public interface CatalogService {
 
     List<ServiceResponse> listActive();
 
+    // Active services whose name or category contains every word of the query, ignoring
+    // case and accents (HU-06 search bar). Blank query = all active services.
+    List<ServiceResponse> searchActive(String query);
+
     // statusFilter null = all services, active and inactive
     List<ServiceResponse> listAll(ServiceStatus statusFilter);
 
