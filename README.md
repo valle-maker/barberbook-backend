@@ -77,6 +77,9 @@ Maven no hace falta instalarlo: el proyecto trae `mvnw`.
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` / `SEED_ADMIN_NAME` | No | vacío | Crea el primer administrador |
 | `BUSINESS_ZONE` | No | `America/Bogota` | Zona horaria del negocio (define "hoy" y la anticipación mínima) |
 | `BUSINESS_CLOSE_TIME` | No | `19:00` | Hora de cierre: ningún servicio puede terminar después |
+| `EMAIL_PROVIDER` | No | `log` | `log` solo escribe los correos en el registro del servidor. `brevo` o `resend` envían correos reales por la API HTTP del proveedor (Render gratis bloquea SMTP) |
+| `EMAIL_API_KEY` / `EMAIL_FROM` | Con proveedor real | — | Clave de la API y correo remitente, que el proveedor debe tener verificado |
+| `EMAIL_FROM_NAME` | No | `BarberBook` | Nombre que ve quien recibe el correo |
 | `BUSINESS_ADDRESS` | No | texto provisional | Dirección del local que lleva el correo de confirmación |
 | `RECOMMENDATION_MIN_BOOKINGS` | No | `10` | Reservas necesarias para ver "Recomendado para ti" |
 | `FORWARD_HEADERS_STRATEGY` | En Render | `none` | Poner `framework` detrás del proxy de Render para registrar la IP real en la bitácora |
@@ -101,8 +104,9 @@ Maven no hace falta instalarlo: el proyecto trae `mvnw`.
 - Las reservas simultáneas se serializan bloqueando la fila del estilista en la base de datos; la segunda recibe
   `409` con `code: "SLOT_TAKEN"`.
 - Los precios son pesos colombianos enteros y la cita guarda el precio vigente al reservar.
-- El correo de confirmación es hoy un **stub** que escribe en el log (`LoggingEmailService`); se reemplaza
-  implementando `EmailService` con un proveedor real.
+- Los correos (confirmación de cita y credenciales del estilista) se envían de forma asíncrona: un fallo del
+  proveedor nunca retrasa la API ni deshace una reserva. Sin `EMAIL_PROVIDER` quedan solo en el log.
+  Nota: con Resend gratuito solo se entrega al correo de la cuenta, salvo que se verifique un dominio propio.
 
 ## Estructura
 

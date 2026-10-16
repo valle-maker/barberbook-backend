@@ -1,5 +1,6 @@
 package com.udea.barberbook.barberbook_backend.common.email;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Service;
 
 import lombok.extern.slf4j.Slf4j;
@@ -9,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 // implementation of EmailService later without touching any caller.
 @Slf4j
 @Service
+@ConditionalOnExpression("'${app.email.provider:log}'.equals('log')")
 public class LoggingEmailService implements EmailService {
 
     @Override
