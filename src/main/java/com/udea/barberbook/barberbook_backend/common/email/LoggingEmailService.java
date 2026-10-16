@@ -18,4 +18,16 @@ public class LoggingEmailService implements EmailService {
             toEmail, fullName, temporaryPassword
         );
     }
+
+    @Override
+    public void sendAppointmentConfirmation(
+        String toEmail, String fullName, String code, String serviceName, String stylistName,
+        String whenText, long price, String address
+    ) {
+        log.info(
+            "[EMAIL STUB] Para: {} | Asunto: Cita confirmada {} | Hola {}, tu cita de {} con {} es el {}. "
+                + "Total a pagar en el local: ${}. Dirección: {}",
+            toEmail, code, fullName, serviceName, stylistName, whenText, price, address
+        );
+    }
 }

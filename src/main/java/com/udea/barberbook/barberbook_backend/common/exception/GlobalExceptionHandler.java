@@ -84,6 +84,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    @ExceptionHandler(SlotUnavailableException.class)
+    public ResponseEntity<ApiError> handleSlotUnavailable(SlotUnavailableException ex) {
+        ApiError body = new ApiError(HttpStatus.CONFLICT.value(), "Conflict", ex.getMessage(), "SLOT_TAKEN");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
     @ExceptionHandler(ServiceNotFoundException.class)
     public ResponseEntity<ApiError> handleServiceNotFound(ServiceNotFoundException ex) {
         ApiError body = new ApiError(HttpStatus.NOT_FOUND.value(), "Not Found", ex.getMessage());

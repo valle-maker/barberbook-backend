@@ -14,6 +14,8 @@ import com.udea.barberbook.barberbook_backend.booking.domain.AppointmentStatus;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, UUID> {
 
+    boolean existsByCode(String code);
+
     // Appointments of the given stylists that overlap the [from, to) window.
     @Query("""
         select a from Appointment a

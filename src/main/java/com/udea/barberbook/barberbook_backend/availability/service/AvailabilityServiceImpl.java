@@ -119,13 +119,15 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         return days;
     }
 
-    private BarberService findActiveService(UUID serviceId) {
+    @Override
+    public BarberService findActiveService(UUID serviceId) {
         return serviceRepository.findById(serviceId)
             .filter(s -> s.getStatus() == ServiceStatus.ACTIVO)
             .orElseThrow(() -> new ServiceNotFoundException("No se encontró el servicio solicitado."));
     }
 
-    private List<Stylist> resolveCandidates(String stylistParam, BarberService service) {
+    @Override
+    public List<Stylist> resolveCandidates(String stylistParam, BarberService service) {
         if (ANY_STYLIST.equalsIgnoreCase(stylistParam)) {
             return stylistRepository.findByActiveTrueAndServices_Id(service.getId());
         }
@@ -181,22 +183,48 @@ public class AvailabilityServiceImpl implements AvailabilityService {
 
                 for (int start = firstStart; start + duration <= shiftEnd; start += slotStepMinutes) {
                     LocalDateTime slotStart = date.atTime(start / 60, start % 60);
-                    LocalDateTime slotEnd = slotStart.plusMinutes(duration);
-
-                    if (slotStart.isBefore(earliestStart)) {
-                        continue;
+                    if (slotIsFree(shift, slotStart, duration, earliestStart, busy)) {
+                        freeSlots.computeIfAbsent(slotStart.toLocalTime(), k -> new ArrayList<>()).add(stylist.getId());
                     }
-                    if (overlapsBreak(shift, start, start + duration)) {
-                        continue;
-                    }
-                    if (busy.stream().anyMatch(a -> slotStart.isBefore(a.getEndAt()) && slotEnd.isAfter(a.getStartAt()))) {
-                        continue;
-                    }
-                    freeSlots.computeIfAbsent(slotStart.toLocalTime(), k -> new ArrayList<>()).add(stylist.getId());
                 }
             }
         }
         return freeSlots;
+    }
+
+    // True when the stylist can start the service at slotStart: on the slot grid, inside a
+    // shift and before the local closing time, outside the break, with enough notice and
+    // without overlapping a confirmed appointment.
+    @Override
+    public boolean isStylistFreeAt(Stylist stylist, BarberService service, LocalDateTime slotStart) {
+        int minuteOfDay = slotStart.getHour() * 60 + slotStart.getMinute();
+        if (slotStart.getSecond() != 0 || slotStart.getNano() != 0 || minuteOfDay % slotStepMinutes != 0) {
+            return false;
+        }
+        LocalDate date = slotStart.toLocalDate();
+        LocalDateTime earliestStart = LocalDateTime.now(clock).plusMinutes(minAdvanceMinutes);
+        List<Appointment> busy = loadBusy(List.of(stylist), date, date).getOrDefault(stylist.getId(), List.of());
+        return stylist.getSchedule().stream()
+            .filter(shift -> shift.getDayOfWeek() == date.getDayOfWeek())
+            .anyMatch(shift -> slotIsFree(shift, slotStart, service.getDurationMinutes(), earliestStart, busy));
+    }
+
+    private boolean slotIsFree(
+        WeeklySchedule shift, LocalDateTime slotStart, int duration, LocalDateTime earliestStart, List<Appointment> busy
+    ) {
+        int closeMinute = LocalTime.parse(closeTime).toSecondOfDay() / 60;
+        int start = slotStart.getHour() * 60 + slotStart.getMinute();
+        int shiftStart = shift.getStartTime().toSecondOfDay() / 60;
+        int shiftEnd = Math.min(shift.getEndTime().toSecondOfDay() / 60, closeMinute);
+
+        if (start < shiftStart || start + duration > shiftEnd) {
+            return false;
+        }
+        if (slotStart.isBefore(earliestStart) || overlapsBreak(shift, start, start + duration)) {
+            return false;
+        }
+        LocalDateTime slotEnd = slotStart.plusMinutes(duration);
+        return busy.stream().noneMatch(a -> slotStart.isBefore(a.getEndAt()) && slotEnd.isAfter(a.getStartAt()));
     }
 
     private boolean overlapsBreak(WeeklySchedule shift, int startMinute, int endMinute) {

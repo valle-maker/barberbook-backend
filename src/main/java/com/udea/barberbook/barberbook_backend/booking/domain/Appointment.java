@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.udea.barberbook.barberbook_backend.catalog.domain.BarberService;
 import com.udea.barberbook.barberbook_backend.stylist.domain.Stylist;
+import com.udea.barberbook.barberbook_backend.user.domain.User;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -23,9 +24,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-// Minimal booking record: HU-12 reads it to subtract busy time from a stylist's
-// day. HU-13 will extend it (client, price snapshot, confirmation code).
-// Times are local to the business time zone (app.business.zone).
+// A booked slot. Availability (HU-12) subtracts CONFIRMADA appointments from a stylist's
+// day; HU-13 creates them while holding a row lock on the stylist so two clients can
+// never take overlapping time. Times are local to the business time zone (app.business.zone).
+// client, code, price and createdAt are nullable at DB level only so rows created before
+// HU-13 (test data) survive ddl-auto=update; the booking flow always fills them.
 @Entity
 @Table(name = "appointments", indexes = @Index(columnList = "stylist_id, start_at"))
 @Getter
@@ -47,6 +50,10 @@ public class Appointment {
     @JoinColumn(name = "service_id", nullable = false)
     private BarberService service;
 
+    @ManyToOne
+    @JoinColumn(name = "client_id")
+    private User client;
+
     @Column(name = "start_at", nullable = false)
     private LocalDateTime startAt;
 
@@ -56,4 +63,14 @@ public class Appointment {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AppointmentStatus status;
+
+    // Booking reference shown to the client, e.g. "#BB-8F3K2Q".
+    @Column(unique = true)
+    private String code;
+
+    // Price (COP) at the moment of booking; later catalog price changes don't affect it.
+    private Long price;
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 }
