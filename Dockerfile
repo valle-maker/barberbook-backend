@@ -7,6 +7,7 @@ RUN mvn -q -B -DskipTests package
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=build /build/target/*.jar app.jar
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75"
+# Tuned for the 512 MB free plan: smaller heap share, single-threaded GC, small thread stacks
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=70 -XX:+UseSerialGC -Xss512k"
 EXPOSE 8080
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

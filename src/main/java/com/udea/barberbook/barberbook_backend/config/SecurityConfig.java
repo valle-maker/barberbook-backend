@@ -58,7 +58,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/google")
                 .permitAll()
                 .requestMatchers(
-                    HttpMethod.GET, "/api/v1/services", "/api/v1/stylists", "/api/v1/home/popular-services"
+                    HttpMethod.GET, "/api/v1/services", "/api/v1/stylists", "/api/v1/home/popular-services",
+                    "/api/v1/health"
                 ).permitAll()
                 // Administrator only: catalog, stylists, audit trail
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")

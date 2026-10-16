@@ -38,7 +38,7 @@ Maven no hace falta instalarlo: el proyecto trae `mvnw`.
 
    ```bash
    mkdir -p src/main/resources/keys
-   openssl genpkey -algorithm RSA -pkeyopt rsa_key_bits:2048 -out src/main/resources/keys/private_key.pem
+   openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out src/main/resources/keys/private_key.pem
    openssl rsa -pubout -in src/main/resources/keys/private_key.pem -out src/main/resources/keys/public_key.pem
    ```
 
@@ -66,12 +66,14 @@ Maven no hace falta instalarlo: el proyecto trae `mvnw`.
 
 | Variable | Obligatoria | Por defecto | Para qué sirve |
 |---|---|---|---|
-| `DB_PASSWORD` | Sí | — | Clave de PostgreSQL |
+| `DB_PASSWORD` | Sí, en local | — | Clave de PostgreSQL |
 | `DB_URL` | No | `jdbc:postgresql://localhost:5432/barberbook_db` | URL JDBC |
 | `DB_USERNAME` | No | `postgres` | Usuario de PostgreSQL |
+| `DATABASE_URL` | En Render | — | Base de datos en formato `postgres://usuario:clave@servidor:puerto/base`. Si existe, reemplaza a `DB_URL`, `DB_USERNAME` y `DB_PASSWORD` |
 | `PORT` | No | `8080` | Puerto HTTP (Render lo inyecta) |
 | `FRONTEND_ORIGINS` | En producción | `http://localhost:8443,http://localhost:5173` | Orígenes del front permitidos por CORS, separados por coma. Debe incluir la URL exacta del front desplegado |
-| `JWT_PRIVATE_KEY_PATH` / `JWT_PUBLIC_KEY_PATH` | En producción | `classpath:keys/...` | Ruta a las llaves, por ejemplo `file:/etc/secrets/private_key.pem` |
+| `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` | En Render | — | Las llaves como texto: el `.pem` completo, o el `.pem` codificado en base64 (una sola línea). Tienen prioridad sobre las rutas |
+| `JWT_PRIVATE_KEY_PATH` / `JWT_PUBLIC_KEY_PATH` | No | `classpath:keys/...` | Ruta a los archivos de las llaves, por ejemplo `file:/etc/secrets/private_key.pem` |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` / `SEED_ADMIN_NAME` | No | vacío | Crea el primer administrador |
 | `BUSINESS_ZONE` | No | `America/Bogota` | Zona horaria del negocio (define "hoy" y la anticipación mínima) |
 | `BUSINESS_CLOSE_TIME` | No | `19:00` | Hora de cierre: ningún servicio puede terminar después |
@@ -131,9 +133,15 @@ docker run -p 8080:8080 -e DB_URL=... -e DB_PASSWORD=... -e JWT_PRIVATE_KEY_PATH
 
 La imagen no incluye las llaves JWT (están en `.dockerignore`); hay que montarlas como archivos.
 
-## Despliegue en Render (resumen)
+## Despliegue en Render
 
-1. Crear una base PostgreSQL y un servicio web desde este repo (tipo Docker).
-2. Definir las variables de entorno de la tabla, incluidas `FRONTEND_ORIGINS` y `FORWARD_HEADERS_STRATEGY=framework`.
-3. Subir las llaves de producción como *Secret Files* y apuntar `JWT_*_PATH` a `/etc/secrets/...`.
-4. Definir `SEED_ADMIN_*` para crear el primer administrador.
+El archivo `render.yaml` (Blueprint) describe la base de datos y el servicio web, así que se crea todo de una vez:
+
+1. En Render: **New → Blueprint**, elegir este repositorio y la rama.
+2. Render pide cinco valores: `FRONTEND_ORIGINS` (URL exacta del front, sin barra final), `SEED_ADMIN_EMAIL`,
+   `SEED_ADMIN_PASSWORD`, `JWT_PRIVATE_KEY` y `JWT_PUBLIC_KEY` (las llaves en base64, de un par generado solo
+   para producción; ver *Puesta en marcha*).
+3. Render construye la imagen Docker, conecta la base por `DATABASE_URL` y comprueba `GET /api/v1/health`.
+
+Notas del plan gratuito: el servicio se duerme tras 15 minutos sin tráfico (la primera petición tarda cerca de
+1 minuto) y la base de datos gratuita expira a los 30 días de creada.

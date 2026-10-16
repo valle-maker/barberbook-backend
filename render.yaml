@@ -1,0 +1,39 @@
+# Render Blueprint: creates the database and the API in one step.
+# Render asks for the values marked "sync: false" when the Blueprint is first created.
+databases:
+  - name: barberbook-db
+    plan: free
+    region: virginia
+    databaseName: barberbook_db
+    user: barberbook
+    ipAllowList: []   # only reachable from Render services, never from the public internet
+
+services:
+  - type: web
+    name: barberbook-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: virginia
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: barberbook-db
+          property: connectionString
+      - key: FORWARD_HEADERS_STRATEGY
+        value: framework
+      - key: SEED_ADMIN_NAME
+        value: Administrador
+      # --- values you paste once, when Render asks (see deploy-secrets/render-valores.txt) ---
+      - key: FRONTEND_ORIGINS
+        sync: false
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
