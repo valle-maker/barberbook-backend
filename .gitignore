@@ -34,3 +34,7 @@ build/
 
 ### JWT dev keys (never commit private keys — regenerate locally, see README) ###
 src/main/resources/keys/
+
+### Editor build output / logs ###
+bin/
+*.log

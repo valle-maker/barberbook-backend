@@ -5,3 +5,4 @@ target/
 *.log
 HELP.md
 src/main/resources/keys/
+bin/
