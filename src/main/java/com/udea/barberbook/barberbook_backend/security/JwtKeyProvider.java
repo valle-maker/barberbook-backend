@@ -8,6 +8,8 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -20,6 +22,8 @@ import org.springframework.stereotype.Component;
 //   2. the file at jwt.private-key-path / jwt.public-key-path (local dev, secret files).
 @Component
 public class JwtKeyProvider {
+
+    private static final Pattern BASE64_PREFIX = Pattern.compile("^[A-Za-z0-9+/]*={0,2}");
 
     private final RSAPrivateKey privateKey;
     private final RSAPublicKey publicKey;
@@ -56,7 +60,15 @@ public class JwtKeyProvider {
         if (text.contains("-----BEGIN")) {
             return text.replace("\\n", "\n");
         }
-        return new String(Base64.getDecoder().decode(text.replaceAll("\\s", "")), StandardCharsets.UTF_8);
+        return new String(Base64.getDecoder().decode(cleanBase64(text)), StandardCharsets.UTF_8);
+    }
+
+    // Values pasted into a hosting dashboard often carry stray characters (quotes, invisible
+    // spaces, a trailing newline). Keep only the base64 alphabet and stop after the padding.
+    private String cleanBase64(String text) {
+        String alphabetOnly = text.replaceAll("[^A-Za-z0-9+/=]", "");
+        Matcher matcher = BASE64_PREFIX.matcher(alphabetOnly);
+        return matcher.find() ? matcher.group() : alphabetOnly;
     }
 
     private RSAPrivateKey readPrivateKey(String pem) throws Exception {
