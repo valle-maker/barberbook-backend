@@ -9,10 +9,12 @@ import org.springframework.stereotype.Component;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 
 // Spring Security's default for a missing/invalid/revoked token is a bare
 // 403 with no body. This makes it a 401 with our standard ApiError shape,
 // matching what's documented for the frontend team.
+@Slf4j
 @Component
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
@@ -22,6 +24,11 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         HttpServletResponse response,
         AuthenticationException authException
     ) throws IOException {
+        // Application log only (not the audit table): anonymous traffic is unbounded and
+        // would let anyone flood the database.
+        log.warn("[AUDITORIA] SIN_AUTENTICACION {} {} ip={}",
+            request.getMethod(), request.getRequestURI().replaceAll("\\p{Cntrl}", "_"), request.getRemoteAddr());
+
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");

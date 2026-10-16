@@ -11,18 +11,17 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.http.MediaType;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.udea.barberbook.barberbook_backend.security.ApiAccessDeniedHandler;
 import com.udea.barberbook.barberbook_backend.security.JwtAuthenticationEntryPoint;
 import com.udea.barberbook.barberbook_backend.security.JwtAuthenticationFilter;
 
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
 @Configuration
@@ -32,6 +31,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final ApiAccessDeniedHandler apiAccessDeniedHandler;
 
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
@@ -48,37 +48,33 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                .accessDeniedHandler(accessDeniedHandler())
+                .accessDeniedHandler(apiAccessDeniedHandler)
             )
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            // Deny by default (HA-01): every route that should be reachable is listed here, and
+            // anything not listed is refused, so a new endpoint is never open by accident.
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/google")
+                .requestMatchers("/error").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/google")
                 .permitAll()
                 .requestMatchers(
-                    org.springframework.http.HttpMethod.GET,
-                    "/api/v1/services", "/api/v1/stylists", "/api/v1/home/popular-services"
+                    HttpMethod.GET, "/api/v1/services", "/api/v1/stylists", "/api/v1/home/popular-services"
                 ).permitAll()
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/home/recommendations")
-                .hasRole("CLIENTE")
+                // Administrator only: catalog, stylists, audit trail
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/appointments").hasRole("CLIENTE")
-                .anyRequest().authenticated()
+                // Client only: booking and personalised home section
+                .requestMatchers(HttpMethod.POST, "/api/v1/appointments").hasRole("CLIENTE")
+                .requestMatchers(HttpMethod.GET, "/api/v1/home/recommendations").hasRole("CLIENTE")
+                // Any signed-in user, always scoped to their own data
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/v1/availability", "/api/v1/availability/month").authenticated()
+                .requestMatchers("/api/v1/users/me").authenticated()
+                .requestMatchers("/api/v1/notifications", "/api/v1/notifications/**").authenticated()
+                .anyRequest().denyAll()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-    }
-
-    @Bean
-    public AccessDeniedHandler accessDeniedHandler() {
-        return (request, response, accessDeniedException) -> {
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.setCharacterEncoding("UTF-8");
-            response.getWriter().write(
-                "{\"status\":403,\"error\":\"Forbidden\",\"message\":\"No tienes permisos para realizar esta acción.\"}"
-            );
-        };
     }
 
     @Bean

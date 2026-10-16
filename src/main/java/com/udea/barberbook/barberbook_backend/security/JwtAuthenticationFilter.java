@@ -9,6 +9,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.udea.barberbook.barberbook_backend.user.domain.User;
+import com.udea.barberbook.barberbook_backend.user.repository.UserRepository;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -29,6 +32,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final TokenBlocklistService tokenBlocklistService;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(
@@ -44,13 +48,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Claims claims = jwtService.parseClaims(token);
 
                 if (!tokenBlocklistService.isRevoked(claims.getId())) {
-                    String role = claims.get("role", String.class);
-                    var authentication = new UsernamePasswordAuthenticationToken(
-                        claims.getSubject(), null, List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                    );
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                    request.setAttribute(JTI_ATTRIBUTE, claims.getId());
-                    request.setAttribute(EXPIRATION_ATTRIBUTE, claims.getExpiration().toInstant());
+                    // The role is re-read from the database on every request instead of trusting
+                    // the one inside the token (HA-01): a demoted or disabled account loses its
+                    // privileges immediately, not when its token expires.
+                    userRepository.findByEmail(claims.getSubject())
+                        .filter(User::isEnabled)
+                        .ifPresent(user -> {
+                            var authentication = new UsernamePasswordAuthenticationToken(
+                                user.getEmail(), null,
+                                List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+                            );
+                            SecurityContextHolder.getContext().setAuthentication(authentication);
+                            request.setAttribute(JTI_ATTRIBUTE, claims.getId());
+                            request.setAttribute(EXPIRATION_ATTRIBUTE, claims.getExpiration().toInstant());
+                        });
                 }
             } catch (JwtException | IllegalArgumentException ex) {
                 SecurityContextHolder.clearContext();
