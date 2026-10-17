@@ -71,7 +71,7 @@ Maven no hace falta instalarlo: el proyecto trae `mvnw`.
 | `DB_USERNAME` | No | `postgres` | Usuario de PostgreSQL |
 | `DATABASE_URL` | En Render | — | Base de datos en formato `postgres://usuario:clave@servidor:puerto/base`. Si existe, reemplaza a `DB_URL`, `DB_USERNAME` y `DB_PASSWORD` |
 | `PORT` | No | `8080` | Puerto HTTP (Render lo inyecta) |
-| `FRONTEND_ORIGINS` | En producción | `http://localhost:8443,http://localhost:5173` | Orígenes del front permitidos por CORS, separados por coma. Debe incluir la URL exacta del front desplegado |
+| `FRONTEND_ORIGINS` | En producción | `http://localhost:8443,http://localhost:5173` | Orígenes del front permitidos por CORS, separados por coma. Acepta patrones con `*` (p. ej. `https://mi-app-*-miequipo.vercel.app` para los despliegues de Vercel). Debe incluir el front desplegado |
 | `JWT_PRIVATE_KEY` / `JWT_PUBLIC_KEY` | En Render | — | Las llaves como texto: el `.pem` completo, o el `.pem` codificado en base64 (una sola línea). Tienen prioridad sobre las rutas |
 | `JWT_PRIVATE_KEY_PATH` / `JWT_PUBLIC_KEY_PATH` | No | `classpath:keys/...` | Ruta a los archivos de las llaves, por ejemplo `file:/etc/secrets/private_key.pem` |
 | `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` / `SEED_ADMIN_NAME` | No | vacío | Crea el primer administrador |

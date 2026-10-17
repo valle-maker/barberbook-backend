@@ -1,6 +1,6 @@
 package com.udea.barberbook.barberbook_backend.config;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -81,7 +81,19 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
+        // Exact origins, plus patterns for entries containing "*" (e.g. Vercel's per-deployment
+        // addresses: https://my-app-*-myteam.vercel.app).
+        List<String> exactOrigins = new ArrayList<>();
+        List<String> originPatterns = new ArrayList<>();
+        for (String origin : allowedOrigins.split(",")) {
+            String trimmed = origin.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            (trimmed.contains("*") ? originPatterns : exactOrigins).add(trimmed);
+        }
+        config.setAllowedOrigins(exactOrigins);
+        config.setAllowedOriginPatterns(originPatterns);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
