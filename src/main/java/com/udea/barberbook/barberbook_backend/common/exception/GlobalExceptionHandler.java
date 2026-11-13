@@ -6,6 +6,9 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -13,8 +16,38 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import com.udea.barberbook.barberbook_backend.audit.service.AuditService;
+
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final AuditService auditService;
+
+    // HS-02 / HA-02: a client reached for an appointment that isn't theirs (or doesn't exist).
+    // The answer is identical in both cases and says nothing about third parties; the attempt is
+    // left in the audit trail.
+    @ExceptionHandler(AppointmentAccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAppointmentAccessDenied(
+        AppointmentAccessDeniedException ex, HttpServletRequest request
+    ) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String role = auth == null ? null : auth.getAuthorities().stream()
+            .map(GrantedAuthority::getAuthority)
+            .map(a -> a.startsWith("ROLE_") ? a.substring(5) : a)
+            .findFirst()
+            .orElse(null);
+        auditService.recordForeignAppointmentAccess(
+            auth != null ? auth.getName() : null, role, request.getMethod(), request.getRequestURI(),
+            request.getRemoteAddr());
+
+        ApiError body = new ApiError(
+            HttpStatus.FORBIDDEN.value(), "Forbidden", ex.getMessage(), "RESERVA_NO_AUTORIZADA");
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+    }
 
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<ApiError> handleEmailAlreadyExists(EmailAlreadyExistsException ex) {
@@ -75,6 +108,12 @@ public class GlobalExceptionHandler {
         ApiError body = new ApiError(
             HttpStatus.BAD_REQUEST.value(), "Bad Request", "Falta el parámetro '" + ex.getParameterName() + "'."
         );
+        return ResponseEntity.badRequest().body(body);
+    }
+
+    @ExceptionHandler(InvalidRequestException.class)
+    public ResponseEntity<ApiError> handleInvalidRequest(InvalidRequestException ex) {
+        ApiError body = new ApiError(HttpStatus.BAD_REQUEST.value(), "Bad Request", ex.getMessage());
         return ResponseEntity.badRequest().body(body);
     }
 

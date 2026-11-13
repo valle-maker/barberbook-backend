@@ -21,6 +21,31 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
 
     List<Appointment> findByClientIdAndStatusNot(UUID clientId, AppointmentStatus status);
 
+    // "Mis reservas" (HU-14). Upcoming = confirmed and not finished yet (one in progress still
+    // counts), soonest first.
+    @Query("""
+        select a from Appointment a
+        where a.client.id = :clientId and a.status = :confirmed and a.endAt > :now
+        order by a.startAt asc
+        """)
+    List<Appointment> findUpcoming(
+        @Param("clientId") UUID clientId,
+        @Param("confirmed") AppointmentStatus confirmed,
+        @Param("now") LocalDateTime now
+    );
+
+    // History = cancelled, or already finished; most recent first.
+    @Query("""
+        select a from Appointment a
+        where a.client.id = :clientId and (a.status = :cancelled or a.endAt <= :now)
+        order by a.startAt desc
+        """)
+    List<Appointment> findHistory(
+        @Param("clientId") UUID clientId,
+        @Param("cancelled") AppointmentStatus cancelled,
+        @Param("now") LocalDateTime now
+    );
+
     // Active services ordered by how many non-excluded appointments they have (most booked
     // first, then by name); services never booked still appear, at the end.
     @Query("""
