@@ -66,6 +66,8 @@ public class SecurityConfig {
                 // Client only: booking and personalised home section
                 .requestMatchers(HttpMethod.POST, "/api/v1/appointments").hasRole("CLIENTE")
                 .requestMatchers(HttpMethod.GET, "/api/v1/appointments", "/api/v1/appointments/*").hasRole("CLIENTE")
+                .requestMatchers(HttpMethod.POST, "/api/v1/appointments/*/cancel").hasRole("CLIENTE")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/appointments/*").hasRole("CLIENTE")
                 .requestMatchers(HttpMethod.GET, "/api/v1/home/recommendations").hasRole("CLIENTE")
                 // Any signed-in user, always scoped to their own data
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").authenticated()

@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,7 +18,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.udea.barberbook.barberbook_backend.booking.dto.AppointmentResponse;
 import com.udea.barberbook.barberbook_backend.booking.dto.CreateAppointmentRequest;
 import com.udea.barberbook.barberbook_backend.booking.dto.MyAppointmentResponse;
+import com.udea.barberbook.barberbook_backend.booking.dto.RescheduleAppointmentRequest;
 import com.udea.barberbook.barberbook_backend.booking.service.BookingService;
+import com.udea.barberbook.barberbook_backend.booking.service.ManageAppointmentService;
 import com.udea.barberbook.barberbook_backend.booking.service.MyAppointmentService;
 import com.udea.barberbook.barberbook_backend.common.exception.InvalidRequestException;
 
@@ -31,6 +34,7 @@ public class AppointmentController {
 
     private final BookingService bookingService;
     private final MyAppointmentService myAppointmentService;
+    private final ManageAppointmentService manageAppointmentService;
 
     // "Mis reservas" (HU-14): ?scope=upcoming (default) or ?scope=history. Only the caller's own.
     @GetMapping
@@ -49,6 +53,22 @@ public class AppointmentController {
     @GetMapping("/{id}")
     public ResponseEntity<MyAppointmentResponse> detail(Authentication authentication, @PathVariable UUID id) {
         return ResponseEntity.ok(myAppointmentService.get(authentication.getName(), id));
+    }
+
+    // HU-15: cancel one of the caller's own active appointments (frees the slot right away).
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<MyAppointmentResponse> cancel(Authentication authentication, @PathVariable UUID id) {
+        return ResponseEntity.ok(manageAppointmentService.cancel(authentication.getName(), id));
+    }
+
+    // HU-15: move the appointment to another free slot of the same stylist (same appointment, no
+    // new one is created).
+    @PatchMapping("/{id}")
+    public ResponseEntity<MyAppointmentResponse> reschedule(
+        Authentication authentication, @PathVariable UUID id,
+        @Valid @RequestBody RescheduleAppointmentRequest request
+    ) {
+        return ResponseEntity.ok(manageAppointmentService.reschedule(authentication.getName(), id, request));
     }
 
     @PostMapping

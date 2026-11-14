@@ -87,6 +87,38 @@ public class HttpEmailService implements EmailService {
         send(toEmail, fullName, "Cita confirmada " + code, html);
     }
 
+    @Override
+    public void sendAppointmentCancelled(
+        String toEmail, String fullName, String code, String serviceName, String stylistName, String whenText
+    ) {
+        String html = "<p>Hola " + esc(fullName) + ",</p>"
+            + "<p>Tu cita quedó <strong>cancelada</strong> y el horario ya está libre.</p>"
+            + "<ul>"
+            + "<li><strong>Código de reserva:</strong> " + esc(code) + "</li>"
+            + "<li><strong>Servicio:</strong> " + esc(serviceName) + "</li>"
+            + "<li><strong>Estilista:</strong> " + esc(stylistName) + "</li>"
+            + "<li><strong>Era el:</strong> " + esc(whenText) + "</li>"
+            + "</ul>"
+            + "<p>Cuando quieras, puedes reservar otra cita desde la app.</p>";
+        send(toEmail, fullName, "Cita cancelada " + code, html);
+    }
+
+    @Override
+    public void sendAppointmentRescheduled(
+        String toEmail, String fullName, String code, String serviceName, String stylistName, String whenText
+    ) {
+        String html = "<p>Hola " + esc(fullName) + ",</p>"
+            + "<p>Tu cita fue <strong>reprogramada</strong>.</p>"
+            + "<ul>"
+            + "<li><strong>Código de reserva:</strong> " + esc(code) + "</li>"
+            + "<li><strong>Servicio:</strong> " + esc(serviceName) + "</li>"
+            + "<li><strong>Estilista:</strong> " + esc(stylistName) + "</li>"
+            + "<li><strong>Nueva fecha y hora:</strong> " + esc(whenText) + "</li>"
+            + "</ul>"
+            + "<p>Te esperamos.</p>";
+        send(toEmail, fullName, "Cita reprogramada " + code, html);
+    }
+
     private void send(String toEmail, String toName, String subject, String html) {
         try {
             boolean brevo = provider.equalsIgnoreCase("brevo");

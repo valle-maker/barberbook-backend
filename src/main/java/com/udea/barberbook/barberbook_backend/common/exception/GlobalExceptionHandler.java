@@ -123,6 +123,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    // HU-15: the appointment is the caller's own but can't be changed now (too close to its
+    // start, or already cancelled/finished). The code lets the front tell the two apart.
+    @ExceptionHandler(AppointmentChangeNotAllowedException.class)
+    public ResponseEntity<ApiError> handleAppointmentChangeNotAllowed(AppointmentChangeNotAllowedException ex) {
+        ApiError body = new ApiError(HttpStatus.CONFLICT.value(), "Conflict", ex.getMessage(), ex.getCode());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
     @ExceptionHandler(SlotUnavailableException.class)
     public ResponseEntity<ApiError> handleSlotUnavailable(SlotUnavailableException ex) {
         ApiError body = new ApiError(HttpStatus.CONFLICT.value(), "Conflict", ex.getMessage(), "SLOT_TAKEN");
