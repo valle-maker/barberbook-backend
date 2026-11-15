@@ -24,4 +24,9 @@ public interface AvailabilityService {
     List<Stylist> resolveCandidates(String stylistId, BarberService service);
 
     boolean isStylistFreeAt(Stylist stylist, BarberService service, LocalDateTime slotStart);
+
+    // Like isStylistFreeAt, for an administrator moving an EXISTING appointment to another stylist
+    // (HU-20): the time does not change, so the slot grid and the minimum notice don't apply (the
+    // appointment may start in a few minutes). Shift, break, closing time and other appointments do.
+    boolean isStylistFreeForReassignment(Stylist stylist, BarberService service, LocalDateTime slotStart);
 }

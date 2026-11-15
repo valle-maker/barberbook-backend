@@ -52,4 +52,28 @@ public class LoggingEmailService implements EmailService {
             toEmail, code, fullName, serviceName, stylistName, whenText
         );
     }
+
+    @Override
+    public void sendAppointmentCancelledByShop(
+        String toEmail, String fullName, String code, String serviceName, String stylistName, String whenText,
+        String reason
+    ) {
+        log.info(
+            "[EMAIL STUB] Para: {} | Asunto: Tuvimos que cancelar tu cita {} | Hola {}, lamentamos cancelar tu cita "
+                + "de {} con {} del {}. Motivo: {}. Te invitamos a reagendar.",
+            toEmail, code, fullName, serviceName, stylistName, whenText, reason
+        );
+    }
+
+    @Override
+    public void sendAppointmentReassigned(
+        String toEmail, String fullName, String code, String serviceName, String previousStylistName,
+        String newStylistName, String whenText
+    ) {
+        log.info(
+            "[EMAIL STUB] Para: {} | Asunto: Cambio de estilista en tu cita {} | Hola {}, tu cita de {} del {} "
+                + "pasa de {} a {}.",
+            toEmail, code, fullName, serviceName, whenText, previousStylistName, newStylistName
+        );
+    }
 }

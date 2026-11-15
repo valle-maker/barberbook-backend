@@ -209,6 +209,15 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             .anyMatch(shift -> slotIsFree(shift, slotStart, service.getDurationMinutes(), earliestStart, busy));
     }
 
+    @Override
+    public boolean isStylistFreeForReassignment(Stylist stylist, BarberService service, LocalDateTime slotStart) {
+        LocalDate date = slotStart.toLocalDate();
+        List<Appointment> busy = loadBusy(List.of(stylist), date, date).getOrDefault(stylist.getId(), List.of());
+        return stylist.getSchedule().stream()
+            .filter(shift -> shift.getDayOfWeek() == date.getDayOfWeek())
+            .anyMatch(shift -> slotIsFree(shift, slotStart, service.getDurationMinutes(), LocalDateTime.MIN, busy));
+    }
+
     private boolean slotIsFree(
         WeeklySchedule shift, LocalDateTime slotStart, int duration, LocalDateTime earliestStart, List<Appointment> busy
     ) {

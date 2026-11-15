@@ -46,6 +46,19 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
         @Param("now") LocalDateTime now
     );
 
+    // Confirmed appointments that start within [from, to) and have not finished yet (HU-20 list).
+    @Query("""
+        select a from Appointment a
+        where a.status = :confirmed and a.endAt > :now and a.startAt >= :from and a.startAt < :to
+        order by a.startAt asc
+        """)
+    List<Appointment> findActiveStartingBetween(
+        @Param("confirmed") AppointmentStatus confirmed,
+        @Param("now") LocalDateTime now,
+        @Param("from") LocalDateTime from,
+        @Param("to") LocalDateTime to
+    );
+
     // Active services ordered by how many non-excluded appointments they have (most booked
     // first, then by name); services never booked still appear, at the end.
     @Query("""

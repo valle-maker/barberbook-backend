@@ -119,6 +119,45 @@ public class HttpEmailService implements EmailService {
         send(toEmail, fullName, "Cita reprogramada " + code, html);
     }
 
+    @Override
+    public void sendAppointmentCancelledByShop(
+        String toEmail, String fullName, String code, String serviceName, String stylistName, String whenText,
+        String reason
+    ) {
+        String html = "<p>Hola " + esc(fullName) + ",</p>"
+            + "<p>Lamentamos mucho informarte que tuvimos que <strong>cancelar tu cita</strong> por un imprevisto. "
+            + "Te pedimos disculpas por las molestias.</p>"
+            + "<ul>"
+            + "<li><strong>Código de reserva:</strong> " + esc(code) + "</li>"
+            + "<li><strong>Servicio:</strong> " + esc(serviceName) + "</li>"
+            + "<li><strong>Estilista:</strong> " + esc(stylistName) + "</li>"
+            + "<li><strong>Era el:</strong> " + esc(whenText) + "</li>"
+            + (reason == null || reason.isBlank() ? "" : "<li><strong>Motivo:</strong> " + esc(reason) + "</li>")
+            + "</ul>"
+            + "<p>Te invitamos a <strong>reagendar</strong> tu cita cuando quieras desde la app de BarberBook. "
+            + "¡Gracias por tu comprensión!</p>";
+        send(toEmail, fullName, "Tuvimos que cancelar tu cita " + code, html);
+    }
+
+    @Override
+    public void sendAppointmentReassigned(
+        String toEmail, String fullName, String code, String serviceName, String previousStylistName,
+        String newStylistName, String whenText
+    ) {
+        String html = "<p>Hola " + esc(fullName) + ",</p>"
+            + "<p>Por un imprevisto, tu cita ahora será atendida por otro estilista. "
+            + "<strong>La fecha y la hora no cambian.</strong></p>"
+            + "<ul>"
+            + "<li><strong>Código de reserva:</strong> " + esc(code) + "</li>"
+            + "<li><strong>Servicio:</strong> " + esc(serviceName) + "</li>"
+            + "<li><strong>Fecha y hora:</strong> " + esc(whenText) + "</li>"
+            + "<li><strong>Estilista anterior:</strong> " + esc(previousStylistName) + "</li>"
+            + "<li><strong>Nuevo estilista:</strong> " + esc(newStylistName) + "</li>"
+            + "</ul>"
+            + "<p>Disculpa las molestias. Te esperamos.</p>";
+        send(toEmail, fullName, "Cambio de estilista en tu cita " + code, html);
+    }
+
     private void send(String toEmail, String toName, String subject, String html) {
         try {
             boolean brevo = provider.equalsIgnoreCase("brevo");
